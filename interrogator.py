@@ -1,5 +1,5 @@
 
-# fleutan 
+# fleutan
 #Copyright (C) 2017  Matthias Tafelmeier
 
 #fleutan is free software: you can redistribute it and/or modify
@@ -15,32 +15,129 @@
 #You should have received a copy of the GNU General Public License
 #along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-from utils import utils
+from utils import *
 import re
+import subprocess
 
-class interrogator:
 
-    path_hop_re = re.compile("\b(.+?)\b \((.+)")
+class ParseException(Exception):
+    pass
+
+
+class Interrogator:
+
+    path_hop_re = re.compile(r"\w\s+?([\w\.]+?)\s\((.+)")
+
+    # flows patterns
+    flow_types = ['tcp', 'raw', 'udp', 'dccp']
+    flow_decolate_re = re.compile(r"(%s)" % ("|".join(flow_types)))
+
+    ip_v4_addr_sub_re = "([0-9]{1,3}.){3}[0-9]{1,3}(:\d+)"
+    # ref.: to commented, untinkered version: ISBN 978-0-596-52068-7
+    ip_v6_addr_sub_re = "(?:(?:[A-F0-9]{1,4}:){7}[A-F0-9]{1,4}|" \
+                        "(?=(?:[A-F0-9]{0,4}:){0,7}[A-F0-9]{0,4})" \
+                        "(([0-9A-F]{1,4}:){1,7}|:)((:[0-9A-F]{1,4})" \
+                        "{1,7}|:))(:\d+)"
+
+    pid_re = re.compile(r"pid=(?P<pid>\d+)", re.MULTILINE)
+    ip_v4_endp_re = re.compile(r"" + "(?P<src_ep>" + ip_v4_addr_sub_re + ")" +
+                               "\s+" + "(?P<dst_ep>" + ip_v4_addr_sub_re + ")")
+    ip_v6_endp_re = re.compile(r"" + "(?P<src_ep>" + ip_v6_addr_sub_re + ")" +
+                               "\s+" + "(?P<dst_ep>" + ip_v6_addr_sub_re + ")",
+                               re.IGNORECASE)
 
     def __init__(self):
         pass
 
-    def determine_path(peer):
-        cmd = utils.which('traceroute')
-
+    def determine_path(self, peer):
+        res = {'hops': []}
+        cmd = which('traceroute')
         if cmd:
-            p_exec = subprocess.Popen([cmd, peer],
-                                        stdout=subprocess.PIPE,
-                                        stderr=subprocess.PIPE,
-                                        shell=True)
-            out, err = proc.communicate()
+            p_exec = subprocess.Popen("%s %s" % (cmd, peer),
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE,
+                                      shell=True)
+            out, err = p_exec.communicate()
 
             if p_exec.returncode != 0:
-                raise RuntimeError("path not determineable for %s: %s" % (peer, err)) 
+                raise RuntimeError("path not determineable for %s: %s" % (peer, err))
 
-            for line in out:
-                #todo regex action
-                print line
+            for line in out.splitlines():
+                for sub_line in line.split(')'):
+                    _hop_match = self.path_hop_re.search(sub_line)
+                    if _hop_match:
+                        try:
+                            res_attempt_hop = _hop_match.group(1)
+                            # not relevant atm
+                            # canonic_hop = _hop_match.group(1)
+
+                            res['hops'].append(res_attempt_hop)
+                        except:
+                            raise RuntimeError("Unexpected hop outline")
         else:
-            raise RuntimeError("cannot find path determination tool") 
+            raise RuntimeError("cannot find path determination tool")
 
+        # droping peer tgt
+        res['hops'] = res['hops'][1:]
+        return res
+
+    def _dissect_ep(self, whole):
+        shards = whole.split(":")
+        addr = None
+        # cure by checking ip_version
+        if len(shards) > 2:
+            addr = ":".join(shards[:-1])
+        else:
+            addr = ".".join(shards[:-1])
+
+        port = shards[-1]
+
+        return addr, port
+
+    def _parse_flow(self, matter):
+        # matter = matter.strip()
+        fl_end_p = self.ip_v4_endp_re.search(matter)
+        if None is fl_end_p:
+            fl_end_p = self.ip_v6_endp_re.search(matter)
+
+        if None is fl_end_p:
+            raise ParseException("Unexpected flows outline")
+
+        src_addr, src_p = self._dissect_ep(fl_end_p.group('src_ep'))
+        dst_addr, dst_p = self._dissect_ep(fl_end_p.group('dst_ep'))
+        pid = self.pid_re.search(matter).group('pid')
+
+        return {"src_addr": src_addr,
+                "src_p": src_p,
+                "dst_addr": dst_addr,
+                "dst_p": dst_p,
+                "pid": pid}
+
+    def gather_flows(self):
+        # TODO shift to more efficient ways (e.g. sk dumping)
+        flows = []
+        cmd = which('ss')
+        # only ones with remote peering potential
+        opts = '-tudwp -n'
+        if cmd:
+            p_exec = subprocess.Popen("%s %s" % (cmd, opts),
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE,
+                                      shell=True)
+            out, err = p_exec.communicate()
+
+            if p_exec.returncode != 0:
+                raise RuntimeError("flows not gatherable for: %s" % (err))
+
+            flows_raw = self.flow_decolate_re.split(out)
+            # skip head
+            flows_raw = flows_raw[1:]
+            for flow_type, flow in zip(flows_raw[0::2], flows_raw[1::2]):
+                refined_flow = self._parse_flow(flow)
+                refined_flow['type'] = flow_type
+                flows.append(refined_flow)
+
+        else:
+            raise RuntimeError("cannot find flows determination tool")
+
+        return flows
