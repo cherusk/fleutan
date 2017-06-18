@@ -26,17 +26,17 @@ class ParseException(Exception):
 
 class Interrogator:
 
-    path_hop_re = re.compile(r"\w\s+?([\w\.]+?)\s\((.+)")
+    path_hop_re = re.compile(r"\w\s+?([\w\d\.\:]+?)\s\((.+)")
 
     # flows patterns
     flow_types = ['tcp', 'raw', 'udp', 'dccp']
     flow_decolate_re = re.compile(r"(%s)" % ("|".join(flow_types)))
 
-    ip_v4_addr_sub_re = "([0-9]{1,3}.){3}[0-9]{1,3}(:\d+)"
+    ip_v4_addr_sub_re = "([0-9]{1,3}\.){3}[0-9]{1,3}(:\d+)"
     # ref.: to commented, untinkered version: ISBN 978-0-596-52068-7
-    ip_v6_addr_sub_re = "(?:(?:[A-F0-9]{1,4}:){7}[A-F0-9]{1,4}|" \
-                        "(?=(?:[A-F0-9]{0,4}:){0,7}[A-F0-9]{0,4})" \
-                        "(([0-9A-F]{1,4}:){1,7}|:)((:[0-9A-F]{1,4})" \
+    ip_v6_addr_sub_re = "(?:(?:[A-F0-9]{1,4}:){7}[A-F0-9]{1,4}|"\
+                        "(?=(?:[A-F0-9]{0,4}:){0,7}[A-F0-9]{0,4})"\
+                        "(([0-9A-F]{1,4}:){1,7}|:)((:[0-9A-F]{1,4})"\
                         "{1,7}|:))(:\d+)"
 
     pid_re = re.compile(r"pid=(?P<pid>\d+)", re.MULTILINE)
@@ -63,6 +63,7 @@ class Interrogator:
                 raise RuntimeError("path not determineable for %s: %s" % (peer, err))
 
             for line in out.splitlines():
+                hop_agglom = []
                 for sub_line in line.split(')'):
                     _hop_match = self.path_hop_re.search(sub_line)
                     if _hop_match:
@@ -70,10 +71,14 @@ class Interrogator:
                             res_attempt_hop = _hop_match.group(1)
                             # not relevant atm
                             # canonic_hop = _hop_match.group(1)
-
-                            res['hops'].append(res_attempt_hop)
+                            if res_attempt_hop:
+                                hop_agglom.append(res_attempt_hop)
                         except:
                             raise RuntimeError("Unexpected hop outline")
+                if len(hop_agglom) == 1:
+                    res['hops'].append(hop_agglom[0])
+                elif len(hop_agglom) > 1:
+                    res['hops'].append(hop_agglom)
         else:
             raise RuntimeError("cannot find path determination tool")
 
