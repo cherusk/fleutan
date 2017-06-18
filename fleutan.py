@@ -18,6 +18,7 @@
 import os
 import sys
 import argparse
+from concurrent import futures
 from interrogator import *
 from depictor import *
 
@@ -46,21 +47,33 @@ def run():
     # todo sophisticate indirector | depict
     if args.focus == "paths" and args.load:
         flow_paths = {}
+        fut_to_f_dst_map = {}
         flows = sys_interog.gather_flows()
-        for f in flows:
-            # might hash f in fut?
-            if f['dst_addr'] not in flow_paths.keys():
-                f_path = sys_interog.determine_path(f['dst_addr'])
-                flow_paths[f['dst_addr']] = {'path': f_path, 'flows': [f]}
-            else:
-                flow_paths[f['dst_addr']]['flows'].append(f)
+        # might setabl. workers num?
+        with futures.ThreadPoolExecutor(max_workers=100) as executor:
+            future = None
+            for f in flows:
+                # might hash f in fut?
+                if f['dst_addr'] not in flow_paths.keys():
+                    flow_paths[f['dst_addr']] = {'path': None, 'flows': [f]}
+                    future = executor.submit(sys_interog.determine_path,
+                                             f['dst_addr'])
+                    fut_to_f_dst_map[future] = f['dst_addr']
+                else:
+                    flow_paths[f['dst_addr']]['flows'].append(f)
+
+            done_iter = futures.as_completed(fut_to_f_dst_map)
+            for future in done_iter:
+                dst_addr_k = fut_to_f_dst_map[future]
+                flow_paths[dst_addr_k]['path'] = future.result()
 
         for f_p_k, f_p_v in flow_paths.items():
             sep_str = "-------"
             print("%s" % plot_path(f_p_v['path']))
             print(sep_str)
             for f in f_p_v['flows']:
-                print("%-10s%20s#%-20s%20s#%s" % (f['type'], f['src_addr'], f['src_p'], f['dst_addr'], f['dst_p']))
+                print("%-10s%20s#%-20s%20s#%s" %
+                      (f['type'], f['src_addr'], f['src_p'], f['dst_addr'], f['dst_p']))
             print(sep_str)
 
 if __name__ == "__main__":
