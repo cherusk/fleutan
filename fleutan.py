@@ -19,6 +19,9 @@ import os
 import sys
 import argparse
 from concurrent import futures
+from itertools import product
+from tabulate import tabulate
+import itertools
 from interrogator import *
 from depictor import *
 
@@ -38,39 +41,90 @@ class Inciter:
     def __call__(self, args):
         self.core(args)
 
-    def paths(self, args):
+    # TODO relocate properly
+    def _gather_flow_paths(self):
         sys_interog = self.interrogator
+        fut_to_f_dst_map = {}
+        flow_paths = {}
+        flows = sys_interog.gather_flows()
+        # might setabl. workers num?
+        with futures.ThreadPoolExecutor(max_workers=100) as executor:
+            future = None
+            for f in flows:
+                # might hash f in fut?
+                if f['dst_addr'] not in flow_paths.keys():
+                    flow_paths[f['dst_addr']] = {'path': None, 'flows': [f]}
+                    future = executor.submit(sys_interog.determine_path,
+                                             f['dst_addr'])
+                    fut_to_f_dst_map[future] = f['dst_addr']
+                else:
+                    flow_paths[f['dst_addr']]['flows'].append(f)
+
+            done_iter = futures.as_completed(fut_to_f_dst_map)
+            for future in done_iter:
+                dst_addr_k = fut_to_f_dst_map[future]
+                flow_paths[dst_addr_k]['path'] = future.result()
+
+        return flow_paths
+
+    def paths_load(self, args):
+        flow_paths = self._gather_flow_paths()
+
+        for f_p_k, f_p_v in flow_paths.items():
+            sep_str = "-------"
+            print("%s" % plot_path(f_p_v['path']))
+            print(sep_str)
+            for f in f_p_v['flows']:
+                print("%-10s%20s#%-20s%20s#%s" %
+                      (f['type'], f['src_addr'], f['src_p'], f['dst_addr'], f['dst_p']))
+            print(sep_str)
+
+    def paths_delta_calc(self, hop):
+        h_0 = hop[0]
+        if isinstance(h_0, list):
+            h_0 = h_0[0]
+
+        for h in hop[1:]:
+            if isinstance(h, list):
+                if h_0 in h:
+                    return False
+            else:
+                if h_0 == h:
+                    return False
+        return True
+
+    def paths_delta(self, args):
+        path_table = []
+        flow_paths = self._gather_flow_paths()
+        raw_hops = [i_p['path']['hops'] for i_p in flow_paths.values()
+                    if len(i_p['path']['hops']) > 0]
+        legend = ['\n..>paths\n']
+        header = ["p%s" % x for x in range(0, len(raw_hops))]
+
+        print "**>Flows"
+        for f_p_v,p_str in zip(flow_paths.values(), header):
+            for f in f_p_v['flows']:
+                print("%-10s%20s#%-20s%20s#%s%10s" %
+                      (f['type'], f['src_addr'], f['src_p'], f['dst_addr'], f['dst_p'], p_str))
+
+
+        for hop in itertools.izip_longest(*raw_hops):
+            # todo refurb hop
+            _hop = list(hop)
+            #if self.paths_delta_calc(_hop):
+                #_hop = color_hop_delta(_hop)
+            path_table.append(_hop)
+
+        print legend[0]
+        print tabulate(path_table, headers=header)
+
+    def paths(self, args):
         # todo sophisticate indirector | depict
         if args.load:
-            flow_paths = {}
-            fut_to_f_dst_map = {}
-            flows = sys_interog.gather_flows()
-            # might setabl. workers num?
-            with futures.ThreadPoolExecutor(max_workers=100) as executor:
-                future = None
-                for f in flows:
-                    # might hash f in fut?
-                    if f['dst_addr'] not in flow_paths.keys():
-                        flow_paths[f['dst_addr']] = {'path': None, 'flows': [f]}
-                        future = executor.submit(sys_interog.determine_path,
-                                                 f['dst_addr'])
-                        fut_to_f_dst_map[future] = f['dst_addr']
-                    else:
-                        flow_paths[f['dst_addr']]['flows'].append(f)
+            self.paths_load(args)
 
-                done_iter = futures.as_completed(fut_to_f_dst_map)
-                for future in done_iter:
-                    dst_addr_k = fut_to_f_dst_map[future]
-                    flow_paths[dst_addr_k]['path'] = future.result()
-
-            for f_p_k, f_p_v in flow_paths.items():
-                sep_str = "-------"
-                print("%s" % plot_path(f_p_v['path']))
-                print(sep_str)
-                for f in f_p_v['flows']:
-                    print("%-10s%20s#%-20s%20s#%s" %
-                          (f['type'], f['src_addr'], f['src_p'], f['dst_addr'], f['dst_p']))
-                print(sep_str)
+        if args.delta:
+            self.paths_delta(args)
 
 
 def init_args():
@@ -81,6 +135,7 @@ def init_args():
 
     paths_parser = subparsers.add_parser('paths')
     paths_parser.add_argument('-l', '--load', help='centre flows traversed net paths', action='store_true')
+    paths_parser.add_argument('-d', '--delta', help='show deltas of paths', action='store_true')
 
     args = parser.parse_args()
 

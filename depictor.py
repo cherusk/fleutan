@@ -15,6 +15,9 @@
 #You should have received a copy of the GNU General Public License
 #along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+import sys
+from termcolor import colored
+
 
 def plot_path(path):
     hops = path['hops']
@@ -39,3 +42,10 @@ def plot_path(path):
         connect_str = " <---> "
 
     return path_depict
+
+
+def color_hop_delta(hop):
+    if isinstance(hop, list):
+        return [colored(_h, 'red') for _h in hop]
+
+    return colored(hop, 'red')
