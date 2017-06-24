@@ -22,7 +22,55 @@ from concurrent import futures
 from interrogator import *
 from depictor import *
 
+
 sys.path.insert(1, os.path.dirname(__file__))
+
+
+class Inciter:
+    def __init__(self, focus, interrogator):
+        self.focus = focus
+        self.interrogator = interrogator
+        self.core = getattr(self, self.focus, "unknown")
+
+        if self.core == "unknown":
+            raise RuntimeError("unknown focus")
+
+    def __call__(self, args):
+        self.core(args)
+
+    def paths(self, args):
+        sys_interog = self.interrogator
+        # todo sophisticate indirector | depict
+        if args.load:
+            flow_paths = {}
+            fut_to_f_dst_map = {}
+            flows = sys_interog.gather_flows()
+            # might setabl. workers num?
+            with futures.ThreadPoolExecutor(max_workers=100) as executor:
+                future = None
+                for f in flows:
+                    # might hash f in fut?
+                    if f['dst_addr'] not in flow_paths.keys():
+                        flow_paths[f['dst_addr']] = {'path': None, 'flows': [f]}
+                        future = executor.submit(sys_interog.determine_path,
+                                                 f['dst_addr'])
+                        fut_to_f_dst_map[future] = f['dst_addr']
+                    else:
+                        flow_paths[f['dst_addr']]['flows'].append(f)
+
+                done_iter = futures.as_completed(fut_to_f_dst_map)
+                for future in done_iter:
+                    dst_addr_k = fut_to_f_dst_map[future]
+                    flow_paths[dst_addr_k]['path'] = future.result()
+
+            for f_p_k, f_p_v in flow_paths.items():
+                sep_str = "-------"
+                print("%s" % plot_path(f_p_v['path']))
+                print(sep_str)
+                for f in f_p_v['flows']:
+                    print("%-10s%20s#%-20s%20s#%s" %
+                          (f['type'], f['src_addr'], f['src_p'], f['dst_addr'], f['dst_p']))
+                print(sep_str)
 
 
 def init_args():
@@ -40,41 +88,11 @@ def init_args():
 
 
 def run():
-
     args = init_args()
     sys_interog = Interrogator()
 
-    # todo sophisticate indirector | depict
-    if args.focus == "paths" and args.load:
-        flow_paths = {}
-        fut_to_f_dst_map = {}
-        flows = sys_interog.gather_flows()
-        # might setabl. workers num?
-        with futures.ThreadPoolExecutor(max_workers=100) as executor:
-            future = None
-            for f in flows:
-                # might hash f in fut?
-                if f['dst_addr'] not in flow_paths.keys():
-                    flow_paths[f['dst_addr']] = {'path': None, 'flows': [f]}
-                    future = executor.submit(sys_interog.determine_path,
-                                             f['dst_addr'])
-                    fut_to_f_dst_map[future] = f['dst_addr']
-                else:
-                    flow_paths[f['dst_addr']]['flows'].append(f)
+    Inciter(args.focus, sys_interog)(args)
 
-            done_iter = futures.as_completed(fut_to_f_dst_map)
-            for future in done_iter:
-                dst_addr_k = fut_to_f_dst_map[future]
-                flow_paths[dst_addr_k]['path'] = future.result()
-
-        for f_p_k, f_p_v in flow_paths.items():
-            sep_str = "-------"
-            print("%s" % plot_path(f_p_v['path']))
-            print(sep_str)
-            for f in f_p_v['flows']:
-                print("%-10s%20s#%-20s%20s#%s" %
-                      (f['type'], f['src_addr'], f['src_p'], f['dst_addr'], f['dst_p']))
-            print(sep_str)
 
 if __name__ == "__main__":
     run()
