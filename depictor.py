@@ -17,7 +17,7 @@
 
 import sys
 from termcolor import colored
-
+from ascii_graph import Pyasciigraph
 
 def plot_path(path):
     hops = path['hops']
@@ -43,6 +43,20 @@ def plot_path(path):
 
     return path_depict
 
+def plot_bars(label, data):
+    # float formatting and a few tweaks
+    graph = Pyasciigraph(
+    line_length=200,
+    min_graph_length=50,
+    separator_length=10,
+    multivalue=False,
+    human_readable='si',
+    graphsymbol='*',
+    float_format='{0:,.2f}'
+    )
+
+    for line in graph.graph(label=label, data=data):
+        print(line)
 
 def color_hop_delta(hop):
     if isinstance(hop, list):

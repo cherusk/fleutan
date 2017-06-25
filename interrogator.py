@@ -18,6 +18,7 @@
 from utils import *
 import re
 import subprocess
+import psutil
 
 
 class ParseException(Exception):
@@ -45,6 +46,10 @@ class Interrogator:
     ip_v6_endp_re = re.compile(r"" + "(?P<src_ep>" + ip_v6_addr_sub_re + ")" +
                                "\s+" + "(?P<dst_ep>" + ip_v6_addr_sub_re + ")",
                                re.IGNORECASE)
+
+    data_res = [re.compile(r"cwnd:(?P<cwnd>\d+)", re.MULTILINE),
+                re.compile(r"rtt:(?P<rtt>\d+\.\d+)/(?P<rtt_var>\d+\.\d+)",
+                           re.MULTILINE)]
 
     def __init__(self):
         pass
@@ -86,6 +91,15 @@ class Interrogator:
         res['hops'] = res['hops'][1:]
         return res
 
+    def _parse_val(self, val):
+        if val.endswith("Mbps"):
+            return float(val[:-4])
+        if val.endswith("Kbps"):
+            return float(val[:-4])*1000
+        if val.endswith("bps"):
+            return float(val[:-3])*10**6
+        return float(val)
+
     def _dissect_ep(self, whole):
         shards = whole.split(":")
         addr = None
@@ -112,18 +126,31 @@ class Interrogator:
         dst_addr, dst_p = self._dissect_ep(fl_end_p.group('dst_ep'))
         pid = self.pid_re.search(matter).group('pid')
 
-        return {"src_addr": src_addr,
-                "src_p": src_p,
-                "dst_addr": dst_addr,
-                "dst_p": dst_p,
-                "pid": pid}
+        res = {"src_addr": src_addr,
+               "src_p": src_p,
+               "dst_addr": dst_addr,
+               "dst_p": dst_p,
+               "pid": pid}
 
+        for r in self.data_res:
+            m = r.search(matter)
+            if m is not None:
+                d = m.groupdict()
+                for k, v in d.items():
+                    try:
+                        res['tcp_%s' % k] = self._parse_val(v)
+                    except ValueError:
+                        pass
+
+        return res
+
+    # todo - selectiveness for efficiency
     def gather_flows(self):
         # TODO shift to more efficient ways (e.g. sk dumping)
         flows = []
         cmd = which('ss')
         # only ones with remote peering potential
-        opts = '-tudwp -n'
+        opts = '-tudwp -n -i'
         if cmd:
             p_exec = subprocess.Popen("%s %s" % (cmd, opts),
                                       stdout=subprocess.PIPE,
@@ -146,3 +173,7 @@ class Interrogator:
             raise RuntimeError("cannot find flows determination tool")
 
         return flows
+    
+    def resolve_pid(self, pid):
+        p = psutil.Process(pid)
+        return " ".join(p.cmdline())
