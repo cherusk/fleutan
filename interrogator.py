@@ -173,7 +173,7 @@ class Interrogator:
             raise RuntimeError("cannot find flows determination tool")
 
         return flows
-    
+
     def resolve_pid(self, pid):
         p = psutil.Process(pid)
         return " ".join(p.cmdline())

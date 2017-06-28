@@ -46,7 +46,7 @@ def plot_path(path):
 def plot_bars(label, data):
     # float formatting and a few tweaks
     graph = Pyasciigraph(
-    line_length=200,
+    line_length=100,
     min_graph_length=50,
     separator_length=10,
     multivalue=False,
