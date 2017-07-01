@@ -19,6 +19,9 @@ from utils import *
 import re
 import subprocess
 import psutil
+import collections
+import time
+import multiprocessing
 
 
 class ParseException(Exception):
@@ -53,6 +56,28 @@ class Interrogator:
 
     def __init__(self):
         pass
+
+    def scout_p_cpus(self, pids, interval=2, delta=0.1):
+        res = dict.fromkeys(pids)
+        for p in pids:
+            res[p] = {'p': psutil.Process(int(p)), 'cpu_stat': []}
+
+        #todo sophisticate/tune this
+        t_end = time.time() + interval
+        while time.time() < t_end:
+            for p in pids:
+                res[p]['cpu_stat'].append(res[p]['p'].cpu_num())
+
+            time.sleep(delta)
+
+        for k, v in res.items():
+            del v['p']
+            res[k] = v['cpu_stat']
+
+        return res
+
+    def determine_cpu_num(self):
+        return multiprocessing.cpu_count()
 
     def determine_path(self, peer):
         res = {'hops': []}
@@ -175,5 +200,5 @@ class Interrogator:
         return flows
 
     def resolve_pid(self, pid):
-        p = psutil.Process(pid)
+        p = psutil.Process(int(pid))
         return " ".join(p.cmdline())

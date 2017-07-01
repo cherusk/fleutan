@@ -24,6 +24,7 @@ from tabulate import tabulate
 import itertools
 from interrogator import *
 from depictor import *
+import collections
 
 
 sys.path.insert(1, os.path.dirname(__file__))
@@ -170,9 +171,31 @@ class Inciter:
             plot_bars(label, sorted(ebwp_data, key=lambda v: v[1]))
             print "\n---"
 
+    def flows_cpu(self, args):
+        flows = self.interrogator.gather_flows()
+        cpu_asoc = self.interrogator.scout_p_cpus([f['pid'] for f in flows], interval=args.interval)
+        cpus_num = self.interrogator.determine_cpu_num()
+        for pid, hist in cpu_asoc.items():
+            cur_flows = filter(lambda f: f['pid'] == pid, flows)
+            print("~>%s(%s)" % (self.interrogator.resolve_pid(pid), pid))
+            for f in sorted(cur_flows, key=lambda f: f['type']):
+                print("%-10s%20s#%-20s%20s#%s" %
+                      (f['type'], f['src_addr'], f['src_p'], f['dst_addr'], f['dst_p']))
+
+            print("___")
+            c = collections.Counter(hist)
+            out_data = [(cpu, c[cpu]) for cpu in range(0, cpus_num)]
+            plot_bars("", out_data)
+            #plot
+            print("...")
+
     def flows(self, args):
         if args.vol:
             self.flows_vol(args)
+            return
+
+        if args.cpu:
+            self.flows_cpu(args)
             return
 
         raise RuntimeError("unknown flows interaction")
@@ -192,6 +215,10 @@ def init_args():
     flows_parser.add_argument('-v', '--vol', help='show volume outline of flows (TCP only)', action='store_true')
     flows_parser.add_argument('-g', '--group', help='group treat flows as of specified indepentend aspect',
                               choices=['peer', 'proc'])
+    flows_parser.add_argument('-c', '--cpu', help='show cpu stats', action='store_true')
+    # too groase
+    flows_parser.add_argument('-i', '--interval', help='interval in secs for sampling based functionalities',
+                              type=int, default=2)
 
     args = parser.parse_args()
 
