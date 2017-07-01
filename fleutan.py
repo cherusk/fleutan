@@ -175,19 +175,36 @@ class Inciter:
         flows = self.interrogator.gather_flows()
         cpu_asoc = self.interrogator.scout_p_cpus([f['pid'] for f in flows], interval=args.interval)
         cpus_num = self.interrogator.determine_cpu_num()
-        for pid, hist in cpu_asoc.items():
-            cur_flows = filter(lambda f: f['pid'] == pid, flows)
-            print("~>%s(%s)" % (self.interrogator.resolve_pid(pid), pid))
-            for f in sorted(cur_flows, key=lambda f: f['type']):
-                print("%-10s%20s#%-20s%20s#%s" %
-                      (f['type'], f['src_addr'], f['src_p'], f['dst_addr'], f['dst_p']))
 
-            print("___")
-            c = collections.Counter(hist)
-            out_data = [(cpu, c[cpu]) for cpu in range(0, cpus_num)]
-            plot_bars("", out_data)
-            #plot
-            print("...")
+        if args.cpu == 'gen':
+            load = {f['pid']: f['tcp_rtt'] * f['tcp_cwnd'] for f in flows}
+            l_out_data = [[cpu, 0] for cpu in range(0, cpus_num)]
+            for pid, hist in cpu_asoc.items():
+                c = collections.Counter(hist)
+                for tup in l_out_data:
+                    prop = c[tup[0]]/float((len(hist)))
+                    tup[1] = tup[1] + prop * load[pid]
+
+            # since tuples immutable
+            l_out_data = [ tuple(l) for l in l_out_data ]
+            label = 'flow processing load distribution:'
+            plot_bars(label, l_out_data)
+
+
+        if args.cpu == 'fl_asoc':
+            for pid, hist in cpu_asoc.items():
+                cur_flows = filter(lambda f: f['pid'] == pid, flows)
+                print("~>%s(%s)" % (self.interrogator.resolve_pid(pid), pid))
+                for f in sorted(cur_flows, key=lambda f: f['type']):
+                    print("%-10s%20s#%-20s%20s#%s" %
+                          (f['type'], f['src_addr'], f['src_p'], f['dst_addr'], f['dst_p']))
+
+                print("___")
+                c = collections.Counter(hist)
+                out_data = [(cpu, c[cpu]) for cpu in range(0, cpus_num)]
+                plot_bars("", out_data)
+                #plot
+                print("...")
 
     def flows(self, args):
         if args.vol:
@@ -215,7 +232,7 @@ def init_args():
     flows_parser.add_argument('-v', '--vol', help='show volume outline of flows (TCP only)', action='store_true')
     flows_parser.add_argument('-g', '--group', help='group treat flows as of specified indepentend aspect',
                               choices=['peer', 'proc'])
-    flows_parser.add_argument('-c', '--cpu', help='show cpu stats', action='store_true')
+    flows_parser.add_argument('-c', '--cpu', help='show cpu stats', choices=['gen', 'fl_asoc'])
     # too groase
     flows_parser.add_argument('-i', '--interval', help='interval in secs for sampling based functionalities',
                               type=int, default=2)
