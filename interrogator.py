@@ -15,13 +15,17 @@
 #You should have received a copy of the GNU General Public License
 #along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-from utils import *
+from utils.util import which
 import re
 import subprocess
 import psutil
 import collections
 import time
 import multiprocessing
+try:
+    from functools import lru_cache
+except ImportError:
+    from backports.functools_lru_cache import lru_cache
 
 
 class ParseException(Exception):
@@ -35,6 +39,8 @@ class Interrogator:
     # flows patterns
     flow_types = ['tcp', 'raw', 'udp', 'dccp']
     flow_decolate_re = re.compile(r"(%s)" % ("|".join(flow_types)))
+
+    ip_r_dev_re = re.compile("dev\s+?(?P<dev>\w+)\\b")
 
     ip_v4_addr_sub_re = "([0-9]{1,3}\.){3}[0-9]{1,3}(:\d+)"
     # ref.: to commented, untinkered version: ISBN 978-0-596-52068-7
@@ -138,6 +144,26 @@ class Interrogator:
 
         return addr, port
 
+    @lru_cache(maxsize=1024, typed=False)
+    def determine_fl_dev(self, dst):
+        cmd = which('ip')
+        args = 'r get %s' % dst
+        if cmd:
+            p_exec = subprocess.Popen("%s %s" % (cmd, args),
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE,
+                                      shell=True)
+            out, err = p_exec.communicate()
+
+            if p_exec.returncode != 0:
+                raise RuntimeError("dev not gatherable for: %s\n%s" % (dst, err))
+
+            dev_match =  self.ip_r_dev_re.search(out)
+
+            return dev_match.group('dev')
+        else:
+            raise RuntimeError("cannot find flow dev determination tool")
+
     def _parse_flow(self, matter):
         # matter = matter.strip()
         fl_end_p = self.ip_v4_endp_re.search(matter)
@@ -170,7 +196,7 @@ class Interrogator:
         return res
 
     # todo - selectiveness for efficiency
-    def gather_flows(self):
+    def gather_flows(self, with_if=True):
         # TODO shift to more efficient ways (e.g. sk dumping)
         flows = []
         cmd = which('ss')
@@ -192,6 +218,8 @@ class Interrogator:
             for flow_type, flow in zip(flows_raw[0::2], flows_raw[1::2]):
                 refined_flow = self._parse_flow(flow)
                 refined_flow['type'] = flow_type
+                if with_if:
+                    refined_flow['dev'] = self.determine_fl_dev(refined_flow['dst_addr'])
                 flows.append(refined_flow)
 
         else:

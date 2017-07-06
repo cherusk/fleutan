@@ -47,7 +47,7 @@ class Inciter:
         sys_interog = self.interrogator
         fut_to_f_dst_map = {}
         flow_paths = {}
-        flows = sys_interog.gather_flows()
+        flows = sys_interog.gather_flows(with_if=False)
         # might setabl. workers num?
         with futures.ThreadPoolExecutor(max_workers=100) as executor:
             future = None
@@ -138,7 +138,7 @@ class Inciter:
                              func(f)) for f in flows]
 
     def flows_vol(self, args):
-        flows = filter(lambda x: x['type'] == 'tcp', self.interrogator.gather_flows())
+        flows = filter(lambda x: x['type'] == 'tcp', self.interrogator.gather_flows(with_if=False))
         flow_groups = [flows]
         flow_group_k = []
         label_pre = ""
