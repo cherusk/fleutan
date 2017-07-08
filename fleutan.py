@@ -24,6 +24,7 @@ from tabulate import tabulate
 import itertools
 from interrogator import *
 from depictor import *
+import numpy as np
 import collections
 
 
@@ -132,18 +133,12 @@ class Inciter:
 
         raise RuntimeError("unknown paths interaction")
 
-    def flows_vol_data_form(self, flows, func):
+    def _flows_data_form(self, flows, func):
         idx_fmt = "%20s#%-6s%20s#%-6s"
         return [(idx_fmt % (f['src_addr'], f['src_p'], f['dst_addr'], f['dst_p']),
                              func(f)) for f in flows]
 
-    def flows_vol(self, args):
-        flows = filter(lambda x: x['type'] == 'tcp', self.interrogator.gather_flows(with_if=False))
-        flow_groups = [flows]
-        flow_group_k = []
-        label_pre = ""
-
-        if args.group:
+    def _flows_group(self, flow_groups): 
             flow_groups = []
             k_func = None
             if args.group == 'peer':
@@ -162,11 +157,22 @@ class Inciter:
                     k = "%s (%s)" % (self.interrogator.resolve_pid(int(k)), k)
                 flow_group_k.append(k)
 
+            return flow_group_k, flow_groups
+
+    def flows_vol(self, args):
+        flows = filter(lambda x: x['type'] == 'tcp', self.interrogator.gather_flows(with_if=False))
+        flow_groups = [flows]
+        flow_group_k = []
+        label_pre = ""
+
+        if args.group:
+            flow_group_k, flow_groups = self._flows_group(flows)
+
         print("**TCP FLOWS:ebdp (estimated bandwidth-delay-product)")
         for f_group, k in itertools.izip_longest(flow_groups, flow_group_k):
             label = "%s>>%s" % (label_pre, k)
             func = lambda f: f['tcp_cwnd'] * f['tcp_rtt']
-            ebwp_data = self.flows_vol_data_form(f_group, func)
+            ebwp_data = self._flows_data_form(f_group, func)
 
             plot_bars(label, sorted(ebwp_data, key=lambda v: v[1]))
             print "\n---"
@@ -206,7 +212,44 @@ class Inciter:
                 #plot
                 print("...")
 
+    def flows_lat(self, args):
+        flows = filter(lambda x: x['type'] == 'tcp', self.interrogator.gather_flows(with_if=False))
+        # depupl from vol!
+        flow_groups = [flows]
+        flow_group_k = []
+        label_pre = ""
+
+        if args.group:
+            flow_group_k, flow_groups = self._flows_group(flows)
+
+        print("**TCP FLOWS:")
+        print("*latency distribution [rtt-range]")
+        rtt_a = [f['tcp_rtt'] for f in flows]
+        hist, bins = np.histogram(rtt_a)
+        label = ""
+        keys = ["[%s-%s]" % (x, y) for x, y in zip(bins[:-1], bins[1:])]
+        lat_data = [(x, y) for x, y in zip(keys, hist)]
+
+        plot_bars(label, lat_data)
+        print "\n---"
+
+        print("*latency per flow in rtt")
+        for f_group, k in itertools.izip_longest(flow_groups, flow_group_k):
+            label = ""
+            if k:
+                label = "%s>>%s" % (label_pre, k)
+            func = lambda f: f['tcp_rtt']
+            lat_data = self._flows_data_form(f_group, func)
+
+            plot_bars(label, sorted(lat_data, key=lambda v: v[1]))
+            print "\n---"
+
+
     def flows(self, args):
+        if args.lat:
+            self.flows_lat(args)
+            return
+
         if args.vol:
             self.flows_vol(args)
             return
@@ -229,10 +272,11 @@ def init_args():
     paths_parser.add_argument('-d', '--delta', help='show deltas of paths', action='store_true')
 
     flows_parser = subparsers.add_parser('flows')
+    flows_parser.add_argument('-l', '--lat', help='show latency(rtt) outline of flows (TCP only)', action='store_true')
     flows_parser.add_argument('-v', '--vol', help='show volume outline of flows (TCP only)', action='store_true')
+    flows_parser.add_argument('-c', '--cpu', help='show cpu stats', choices=['gen', 'fl_asoc'])
     flows_parser.add_argument('-g', '--group', help='group treat flows as of specified indepentend aspect',
                               choices=['peer', 'proc'])
-    flows_parser.add_argument('-c', '--cpu', help='show cpu stats', choices=['gen', 'fl_asoc'])
     # too groase
     flows_parser.add_argument('-i', '--interval', help='interval in secs for sampling based functionalities',
                               type=int, default=2)
