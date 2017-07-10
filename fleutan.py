@@ -168,6 +168,9 @@ class Inciter:
         if args.group:
             flow_group_k, flow_groups = self._flows_group(flows)
 
+
+        self.interrogator.survey_flows()
+
         print("**TCP FLOWS:ebdp (estimated bandwidth-delay-product)")
         for f_group, k in itertools.izip_longest(flow_groups, flow_group_k):
             label = "%s>>%s" % (label_pre, k)
