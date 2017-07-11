@@ -59,6 +59,8 @@ class Interrogator:
 
     data_res = [re.compile(r"cwnd:(?P<cwnd>\d+)", re.MULTILINE),
                 re.compile(r"rtt:(?P<rtt>\d+\.\d+)/(?P<rtt_var>\d+\.\d+)",
+                           re.MULTILINE),
+                re.compile(r"segs_out:(?P<segs_out>\d+)\s+segs_in:(?P<segs_in>\d+)",
                            re.MULTILINE)]
 
     def __init__(self):

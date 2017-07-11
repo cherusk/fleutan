@@ -181,19 +181,24 @@ class Inciter:
 
         print("**TCP FLOWS: transceive stats")
         for k, intercept_flows in self.interrogator.survey_flows(args.interval).items():
-            _intercept_flows = filter(lambda x: x['type'] == 'TCP', intercept_flows.values())
+            post_f = 'in'
+            if k == 'TX':
+                post_f = 'out'
             for f in flows:
                 idx = flow_idx(f)
                 try:
-                    i_f = intercept_flows[idx]
+                    intercept_flows[idx]['tcp_segs_%s' % post_f] = f['tcp_segs_%s' % post_f]
                 # cannot guarantee symmetry
                 except KeyError:
                     pass
+            _intercept_flows = filter(lambda x: x['type'].startswith('TCP'), intercept_flows.values())
 
-            label = ">>%s" % (k)
-            func = lambda f: f['bytes']
-            b_vol_data = self._flows_data_form(_intercept_flows, func)
-            plot_bars(label, sorted(b_vol_data, key=lambda v: v[1]))
+            print(">>%s" % (k))
+            for data_idx, _flows in {'tcp_segs_%s' % post_f: flows, 'bytes': _intercept_flows}.items():
+                label = "##%s" % (data_idx)
+                func = lambda f: f[data_idx]
+                b_vol_data = self._flows_data_form(_flows, func)
+                plot_bars(label, sorted(b_vol_data, key=lambda v: v[1]))
             print "\n---"
 
 
