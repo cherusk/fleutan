@@ -158,9 +158,9 @@ class Data_ipv6(ct.Structure):
 
 
 def prep_idx(f_event, s_addr, d_addr):
-    proto = f_event.prot
-    s_tuple = "%s:%s" % (s_addr, f_event.lport)
-    d_tuple = "%s:%s" % (d_addr, f_event.dport)
+    proto = f_event.prot.lower()
+    s_tuple = "%s%s" % (s_addr, f_event.lport)
+    d_tuple = "%s%s" % (d_addr, f_event.dport)
     flow_str = "%s%s%s" % (proto, s_tuple, d_tuple)
     return flow_str
 
@@ -176,7 +176,8 @@ def set_item(flows_hive, idx, f_event, s_addr, dst_addr):
                 "src_addr": s_addr,
                 "src_p": f_event.lport,
                 "dst_addr": dst_addr,
-                "dst_p": f_event.dport}
+                "dst_p": f_event.dport,
+                "type" : str(f_event.prot)}
         flows_hive[idx] = item
 
 
@@ -224,4 +225,4 @@ def run(interval):
     while time.time() < t_end:
         b.kprobe_poll()
 
-    return flows_hive_rx.values(), flows_hive_tx.values()
+    return {'RX': flows_hive_rx, 'TX': flows_hive_tx}

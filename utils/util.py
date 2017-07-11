@@ -35,3 +35,10 @@ def which(executable, fail=False):
     if fail:
         raise RuntimeError("No %s binary found in PATH." % executable)
     return None
+
+
+def flow_idx(flow_i):
+    return "%s%s%s%s%s" % (flow_i['type'],
+                           flow_i['src_addr'], flow_i['src_p'],
+                           flow_i['dst_addr'], flow_i['dst_p']
+                           )

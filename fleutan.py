@@ -21,6 +21,7 @@ import argparse
 from concurrent import futures
 from itertools import product
 from tabulate import tabulate
+from utils.util import flow_idx 
 import itertools
 from interrogator import *
 from depictor import *
@@ -169,8 +170,6 @@ class Inciter:
             flow_group_k, flow_groups = self._flows_group(flows)
 
 
-        self.interrogator.survey_flows()
-
         print("**TCP FLOWS:ebdp (estimated bandwidth-delay-product)")
         for f_group, k in itertools.izip_longest(flow_groups, flow_group_k):
             label = "%s>>%s" % (label_pre, k)
@@ -179,6 +178,24 @@ class Inciter:
 
             plot_bars(label, sorted(ebwp_data, key=lambda v: v[1]))
             print "\n---"
+
+        print("**TCP FLOWS: transceive stats")
+        for k, intercept_flows in self.interrogator.survey_flows(args.interval).items():
+            _intercept_flows = filter(lambda x: x['type'] == 'TCP', intercept_flows.values())
+            for f in flows:
+                idx = flow_idx(f)
+                try:
+                    i_f = intercept_flows[idx]
+                # cannot guarantee symmetry
+                except KeyError:
+                    pass
+
+            label = ">>%s" % (k)
+            func = lambda f: f['bytes']
+            b_vol_data = self._flows_data_form(_intercept_flows, func)
+            plot_bars(label, sorted(b_vol_data, key=lambda v: v[1]))
+            print "\n---"
+
 
     def flows_cpu(self, args):
         flows = self.interrogator.gather_flows()
