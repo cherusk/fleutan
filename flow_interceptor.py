@@ -158,7 +158,7 @@ class Data_ipv6(ct.Structure):
 
 
 def prep_idx(f_event, s_addr, d_addr):
-    proto = f_event.prot.lower()
+    proto = f_event.prot.lower().replace("v6", "")
     s_tuple = "%s%s" % (s_addr, f_event.lport)
     d_tuple = "%s%s" % (d_addr, f_event.dport)
     flow_str = "%s%s%s" % (proto, s_tuple, d_tuple)

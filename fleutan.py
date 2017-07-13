@@ -21,7 +21,7 @@ import argparse
 from concurrent import futures
 from itertools import product
 from tabulate import tabulate
-from utils.util import flow_idx 
+from utils.util import flow_idx, _flows_e_exch
 import itertools
 from interrogator import *
 from depictor import *
@@ -139,7 +139,7 @@ class Inciter:
         return [(idx_fmt % (f['src_addr'], f['src_p'], f['dst_addr'], f['dst_p']),
                              func(f)) for f in flows]
 
-    def _flows_group(self, flow_groups): 
+    def _flows_group(self, flow_groups):
             flow_groups = []
             k_func = None
             if args.group == 'peer':
@@ -184,13 +184,7 @@ class Inciter:
             post_f = 'in'
             if k == 'TX':
                 post_f = 'out'
-            for f in flows:
-                idx = flow_idx(f)
-                try:
-                    intercept_flows[idx]['tcp_segs_%s' % post_f] = f['tcp_segs_%s' % post_f]
-                # cannot guarantee symmetry
-                except KeyError:
-                    pass
+            _flows_e_exch(flows, intercept_flows, ['tcp_segs_%s' % post_f], ['tcp_segs_%s' % post_f])
             _intercept_flows = filter(lambda x: x['type'].startswith('TCP'), intercept_flows.values())
 
             print(">>%s" % (k))
@@ -208,18 +202,35 @@ class Inciter:
         cpus_num = self.interrogator.determine_cpu_num()
 
         if args.cpu == 'gen':
-            load = {f['pid']: f['tcp_rtt'] * f['tcp_cwnd'] for f in flows}
-            l_out_data = [[cpu, 0] for cpu in range(0, cpus_num)]
-            for pid, hist in cpu_asoc.items():
-                c = collections.Counter(hist)
-                for tup in l_out_data:
-                    prop = c[tup[0]]/float((len(hist)))
-                    tup[1] = tup[1] + prop * load[pid]
+            label = "flow processing load distribution:"
+            # ugly repetition
+            loads = {}
+            for k, func in {
+                    "segs_in":  lambda f: f['tcp_segs_in'],
+                    "segs_out": lambda f: f['tcp_segs_out'],
+                    "ebwp":  lambda f: f['tcp_cwnd'] * f['tcp_rtt']
+                    }.items():
+                loads[k] = {f['pid']: func(f) for f in flows}
 
-            # since tuples immutable
-            l_out_data = [ tuple(l) for l in l_out_data ]
-            label = 'flow processing load distribution:'
-            plot_bars(label, l_out_data)
+            e_k = 'bytes'
+            for k, intercept_flows in self.interrogator.survey_flows(args.interval).items():
+                _flows_e_exch(flows, intercept_flows, ['pid'], ['pid'])
+                _intercept_flows = filter(lambda x: 'pid' in x.keys(), intercept_flows.values())
+                loads['%s_%s' % (k, e_k)] = {f['pid']: f[e_k] for f in _intercept_flows}
+
+            for k, _load in loads.items():
+                l_out_data = [[cpu, 0] for cpu in range(0, cpus_num)]
+                for pid, hist in cpu_asoc.items():
+                    if pid in _load.keys():
+                        c = collections.Counter(hist)
+                        for tup in l_out_data:
+                            prop = c[tup[0]]/float((len(hist)))
+                            tup[1] = tup[1] + prop * _load[pid]
+
+                # since tuples immutable
+                l_out_data = [ tuple(l) for l in l_out_data ]
+                label = "#>%s" % (k)
+                plot_bars(label, l_out_data)
 
 
         if args.cpu == 'fl_asoc':

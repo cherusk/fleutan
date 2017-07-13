@@ -42,3 +42,13 @@ def flow_idx(flow_i):
                            flow_i['src_addr'], flow_i['src_p'],
                            flow_i['dst_addr'], flow_i['dst_p']
                            )
+
+def _flows_e_exch(orig, sink, orig_e, sink_e):
+        for f in orig:
+            idx = flow_idx(f)
+            try:
+                for o_e, s_e in zip(orig_e, sink_e):
+                    sink[idx][s_e] = f[o_e]
+            # cannot guarantee symmetry
+            except KeyError:
+                pass
