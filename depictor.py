@@ -18,6 +18,8 @@
 import sys
 from termcolor import colored
 from ascii_graph import Pyasciigraph
+from ascii_graph.colordata import vcolor
+from ascii_graph.colordata import hcolor
 
 def plot_path(path):
     hops = path['hops']
@@ -43,7 +45,7 @@ def plot_path(path):
 
     return path_depict
 
-def plot_bars(label, data):
+def plot_bars(label, data, sym=None, threshs=None):
     # float formatting and a few tweaks
     graph = Pyasciigraph(
     line_length=100,
@@ -51,9 +53,12 @@ def plot_bars(label, data):
     separator_length=10,
     multivalue=False,
     human_readable='si',
-    graphsymbol='*',
+    graphsymbol=sym,
     float_format='{0:,.2f}'
     )
+
+    if threshs:
+        data = hcolor(data, threshs)
 
     for line in graph.graph(label=label, data=data):
         print(line)

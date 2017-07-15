@@ -22,6 +22,7 @@ from concurrent import futures
 from itertools import product
 from tabulate import tabulate
 from utils.util import flow_idx, _flows_e_exch
+from ascii_graph.colors import *
 import itertools
 from interrogator import *
 from depictor import *
@@ -178,14 +179,16 @@ class Inciter:
             func = lambda f: f['tcp_cwnd'] * f['tcp_rtt']
             ebwp_data = self._flows_data_form(f_group, func)
 
-            plot_bars(label, sorted(ebwp_data, key=lambda v: v[1]))
+            plot_bars(label, sorted(ebwp_data, key=lambda v: v[1]), "-")
             print "\n---"
 
         print("**TCP FLOWS: transceive stats")
         for k, intercept_flows in self.interrogator.survey_flows(args.interval).items():
             post_f = 'in'
+            g_sym = '|'
             if k == 'TX':
                 post_f = 'out'
+                g_sym = '*'
             _flows_e_exch(flows, intercept_flows, ['tcp_segs_%s' % post_f], ['tcp_segs_%s' % post_f])
             _intercept_flows = filter(lambda x: x['type'].startswith('TCP'), intercept_flows.values())
 
@@ -194,7 +197,7 @@ class Inciter:
                 label = "##%s" % (data_idx)
                 func = lambda f: f[data_idx]
                 b_vol_data = self._flows_data_form(_flows, func)
-                plot_bars(label, sorted(b_vol_data, key=lambda v: v[1]))
+                plot_bars(label, sorted(b_vol_data, key=lambda v: v[1]), g_sym)
             print "\n---"
 
 
@@ -271,6 +274,9 @@ class Inciter:
         plot_bars(label, lat_data)
         print "\n---"
 
+        thresholds = {
+          10:  Gre, 20: Yel, 10000: Red,
+        }
         print("*latency per flow in rtt")
         for f_group, k in itertools.izip_longest(flow_groups, flow_group_k):
             label = ""
@@ -279,7 +285,7 @@ class Inciter:
             func = lambda f: f['tcp_rtt']
             lat_data = self._flows_data_form(f_group, func)
 
-            plot_bars(label, sorted(lat_data, key=lambda v: v[1]))
+            plot_bars(label, sorted(lat_data, key=lambda v: v[1]), threshs=thresholds)
             print "\n---"
 
 
