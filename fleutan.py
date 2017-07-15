@@ -45,11 +45,16 @@ class Inciter:
         self.core(args)
 
     # TODO relocate properly
-    def _gather_flow_paths(self):
+    def _gather_flow_paths(self, filt_dsts):
         sys_interog = self.interrogator
         fut_to_f_dst_map = {}
         flow_paths = {}
         flows = sys_interog.gather_flows(with_if=False)
+        if filt_dsts:
+            # todo resolve dsts
+            print filt_dsts
+            flows = filter(lambda f: f['dst_addr'] in filt_dsts, flows)
+            print flows
         # might setabl. workers num?
         with futures.ThreadPoolExecutor(max_workers=100) as executor:
             future = None
@@ -98,7 +103,7 @@ class Inciter:
 
     def paths_delta(self, args):
         path_table = []
-        flow_paths = self._gather_flow_paths()
+        flow_paths = self._gather_flow_paths(args.dsts)
         raw_hops = [i_p['path']['hops'] for i_p in flow_paths.values()
                     if len(i_p['path']['hops']) > 0]
         legend = ['\n..>paths\n']
@@ -115,8 +120,8 @@ class Inciter:
         for hop in itertools.izip_longest(*raw_hops):
             # todo refurb hop
             _hop = list(hop)
-            #if self.paths_delta_calc(_hop):
-                #_hop = color_hop_delta(_hop)
+            if args.dsts and self.paths_delta_calc(_hop):
+                _hop = color_hop_delta(_hop)
             path_table.append(_hop)
 
         print legend[0]
@@ -306,6 +311,7 @@ def init_args():
     paths_parser = subparsers.add_parser('paths')
     paths_parser.add_argument('-l', '--load', help='centre flows traversed net paths', action='store_true')
     paths_parser.add_argument('-d', '--delta', help='show deltas of paths', action='store_true')
+    paths_parser.add_argument('--dsts', help='peer destinations to focus', nargs='*', metavar=('dst1 dst2', ''))
 
     flows_parser = subparsers.add_parser('flows')
     flows_parser.add_argument('-l', '--lat', help='show latency(rtt) outline of flows (TCP only)', action='store_true')
