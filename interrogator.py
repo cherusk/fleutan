@@ -22,7 +22,6 @@ import psutil
 import collections
 import time
 import multiprocessing
-import flow_interceptor
 try:
     from functools import lru_cache
 except ImportError:
@@ -235,4 +234,5 @@ class Interrogator:
         return " ".join(p.cmdline())
 
     def survey_flows(self, interval):
+        import flow_interceptor
         return flow_interceptor.run(interval)
