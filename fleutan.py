@@ -175,7 +175,8 @@ class Inciter:
 
         print("**TCP FLOWS:ebdp (estimated bandwidth-delay-product)")
         for f_group, k in itertools.izip_longest(flow_groups, flow_group_k):
-            label = "%s>>%s" % (label_pre, k)
+            if k:
+                label = "%s>>%s" % (label_pre, k)
             func = lambda f: f['tcp_cwnd'] * f['tcp_rtt']
             ebwp_data = self._flows_data_form(f_group, func)
 
@@ -263,7 +264,7 @@ class Inciter:
         if args.group:
             flow_group_k, flow_groups = self._flows_group(flows)
 
-        print("**TCP FLOWS:")
+        print("**TCP FLOWS: (NUM %s)" % len(flows))
         print("*latency distribution [rtt-range]")
         rtt_a = [f['tcp_rtt'] for f in flows]
         hist, bins = np.histogram(rtt_a)
@@ -277,7 +278,7 @@ class Inciter:
         thresholds = {
           10:  Gre, 20: Yel, 10000: Red,
         }
-        print("*latency per flow in rtt")
+        print("*latency per flow in rtt(ms)")
         for f_group, k in itertools.izip_longest(flow_groups, flow_group_k):
             label = ""
             if k:
