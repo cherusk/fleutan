@@ -83,8 +83,7 @@ class Inciter:
             print("%s" % plot_path(f_p_v['path']))
             print(sep_str)
             for f in f_p_v['flows']:
-                print("%-10s%20s#%-20s%20s#%s" %
-                      (f['type'], f['src_addr'], f['src_p'], f['dst_addr'], f['dst_p']))
+                depict_flow(f, [])
             print(sep_str)
 
     def paths_delta_calc(self, hop):
@@ -109,12 +108,10 @@ class Inciter:
         legend = ['\n..>paths\n']
         header = ["p%s" % x for x in range(0, len(raw_hops))]
 
-        # depulicate!
         print "**>Flows"
-        for f_p_v,p_str in zip(flow_paths.values(), header):
+        for f_p_v, p_str in zip(flow_paths.values(), header):
             for f in f_p_v['flows']:
-                print("%-10s%20s#%-20s%20s#%s%10s" %
-                      (f['type'], f['src_addr'], f['src_p'], f['dst_addr'], f['dst_p'], p_str))
+                depict_flow(f, [p_str])
 
 
         for hop in itertools.izip_longest(*raw_hops):

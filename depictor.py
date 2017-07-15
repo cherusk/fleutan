@@ -63,3 +63,15 @@ def color_hop_delta(hop):
         return [colored(_h, 'red') for _h in hop]
 
     return colored(hop, 'red')
+
+
+def depict_flow(f, ext_fields):
+        out = "%-10s%20s#%-20s%20s#%-10s" % (f['type'],
+                                             f['src_addr'],
+                                             f['src_p'],
+                                             f['dst_addr'],
+                                             f['dst_p'])
+        for e_f in ext_fields:
+            out = "%s %s" % (out, e_f)
+
+        print out
