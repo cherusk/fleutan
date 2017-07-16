@@ -30,9 +30,6 @@ import numpy as np
 import collections
 
 
-sys.path.insert(1, os.path.dirname(__file__))
-
-
 class Inciter:
     def __init__(self, focus, interrogator):
         self.focus = focus
@@ -346,7 +343,3 @@ def run():
     sys_interog = Interrogator()
 
     Inciter(args.focus, sys_interog)(args)
-
-
-if __name__ == "__main__":
-    run()
