@@ -52,3 +52,7 @@ def _flows_e_exch(orig, sink, orig_e, sink_e):
             # cannot guarantee symmetry
             except KeyError:
                 pass
+
+
+def chunk_l(_list, slice_size):
+    return zip(*(iter(_list),) * slice_size)

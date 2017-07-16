@@ -21,7 +21,7 @@ import argparse
 from concurrent import futures
 from itertools import product
 from tabulate import tabulate
-from utils.util import flow_idx, _flows_e_exch
+from utils.util import flow_idx, _flows_e_exch, chunk_l
 from ascii_graph.colors import *
 import itertools
 from interrogator import *
@@ -102,28 +102,39 @@ class Inciter:
         return True
 
     def paths_delta(self, args):
-        path_table = []
+        path_tables = []
         flow_paths = self._gather_flow_paths(args.dsts)
         raw_hops = [i_p['path']['hops'] for i_p in flow_paths.values()
                     if len(i_p['path']['hops']) > 0]
         legend = ['\n..>paths\n']
-        header = ["p%s" % x for x in range(0, len(raw_hops))]
+        header = ["(p%s)" % x for x in range(0, len(raw_hops))]
 
         print "**>Flows"
         for f_p_v, p_str in zip(flow_paths.values(), header):
             for f in f_p_v['flows']:
                 depict_flow(f, [p_str])
 
-
+        cols = 3
         for hop in itertools.izip_longest(*raw_hops):
             # todo refurb hop
             _hop = list(hop)
             if args.dsts and self.paths_delta_calc(_hop):
                 _hop = color_hop_delta(_hop)
-            path_table.append(_hop)
+
+            if not path_tables:
+                path_tables = [[list(r)] for r in chunk_l(_hop, cols)]
+                print path_tables
+            else:
+                idx = 0
+                for pt_row in chunk_l(_hop, cols):
+                    if pt_row:
+                        print(pt_row)
+                        path_tables[idx].append(list(pt_row))
+                        idx = idx + 1
 
         print legend[0]
-        print tabulate(path_table, headers=header)
+        for pt, _headers in itertools.izip_longest(path_tables, [list(x) for x in chunk_l(header, cols)]):
+            print tabulate(pt, headers=_headers)
 
     def paths(self, args):
         # todo sophisticate indirector | depict
