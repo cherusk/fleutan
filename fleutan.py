@@ -123,12 +123,10 @@ class Inciter:
 
             if not path_tables:
                 path_tables = [[list(r)] for r in chunk_l(_hop, cols)]
-                print path_tables
             else:
                 idx = 0
                 for pt_row in chunk_l(_hop, cols):
                     if pt_row:
-                        print(pt_row)
                         path_tables[idx].append(list(pt_row))
                         idx = idx + 1
 
@@ -319,19 +317,19 @@ class Inciter:
 
 def init_args():
     # todo systematic descr/CLI doc
-    parser = argparse.ArgumentParser(description="Fleutan - a scalable flow and path wielding lever")
+    parser = argparse.ArgumentParser(description="Fleutan - a scalable flowing and pathing wielding lever")
 
-    subparsers = parser.add_subparsers(description="focus moduls", dest="focus")
+    subparsers = parser.add_subparsers(description="Focus selectable via sub modules hierarchy.", dest="focus")
 
     paths_parser = subparsers.add_parser('paths')
-    paths_parser.add_argument('-l', '--load', help='centre flows traversed net paths', action='store_true')
-    paths_parser.add_argument('-d', '--delta', help='show deltas of paths', action='store_true')
-    paths_parser.add_argument('--dsts', help='peer destinations to focus', nargs='*', metavar=('dst1 dst2', ''))
+    paths_parser.add_argument('-l', '--load', help='centre on of flows traversed net paths', action='store_true')
+    paths_parser.add_argument('-d', '--delta', help='show deltas of paths of existing flows', action='store_true')
+    paths_parser.add_argument('--dsts', help='peer destinations to focus on', nargs='*', metavar=('dst1 dst2', ''))
 
     flows_parser = subparsers.add_parser('flows')
     flows_parser.add_argument('-l', '--lat', help='show latency(rtt) outline of flows (TCP only)', action='store_true')
     flows_parser.add_argument('-v', '--vol', help='show volume outline of flows (TCP only)', action='store_true')
-    flows_parser.add_argument('-c', '--cpu', help='show cpu stats', choices=['gen', 'fl_asoc'])
+    flows_parser.add_argument('-c', '--cpu', help='show cpu related stats', choices=['gen', 'fl_asoc'])
     flows_parser.add_argument('-g', '--group', help='group treat flows as of specified indepentend aspect',
                               choices=['peer', 'proc'])
     # too groase
