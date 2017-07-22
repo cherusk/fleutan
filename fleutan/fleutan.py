@@ -170,7 +170,7 @@ class Inciter:
             return flow_group_k, flow_groups
 
     def flows_vol(self, args):
-        flows = filter(lambda x: x['type'] == 'tcp', self.interrogator.gather_flows(with_if=False))
+        flows = filter(lambda x: x['type'] == 'tcp' and 'tcp_rtt' in x.keys(), self.interrogator.gather_flows(with_if=False))
         flow_groups = [flows]
         flow_group_k = []
         label_pre = ""
@@ -261,7 +261,7 @@ class Inciter:
                 print("...")
 
     def flows_lat(self, args):
-        flows = filter(lambda x: x['type'] == 'tcp', self.interrogator.gather_flows(with_if=False))
+        flows = filter(lambda x: x['type'] == 'tcp' and 'tcp_rtt' in x.keys(), self.interrogator.gather_flows(with_if=False))
         # depupl from vol!
         flow_groups = [flows]
         flow_group_k = []
