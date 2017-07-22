@@ -55,4 +55,7 @@ def _flows_e_exch(orig, sink, orig_e, sink_e):
 
 
 def chunk_l(_list, slice_size):
-    return zip(*(iter(_list),) * slice_size)
+    if len(_list) > slice_size:
+        return zip(*(iter(_list),) * slice_size)
+    else:
+        return [_list]

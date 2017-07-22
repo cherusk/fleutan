@@ -181,6 +181,7 @@ class Inciter:
 
         print("**TCP FLOWS:ebdp (estimated bandwidth-delay-product)")
         for f_group, k in itertools.izip_longest(flow_groups, flow_group_k):
+            label = ""
             if k:
                 label = "%s>>%s" % (label_pre, k)
             func = lambda f: f['tcp_cwnd'] * f['tcp_rtt']
@@ -216,13 +217,15 @@ class Inciter:
         if args.cpu == 'gen':
             label = "flow processing load distribution:"
             # ugly repetition
+            _flows = filter(lambda x: x['type'] == 'tcp' and 'tcp_segs_out' in x.keys(), flows)
+            print _flows
             loads = {}
             for k, func in {
                     "segs_in":  lambda f: f['tcp_segs_in'],
                     "segs_out": lambda f: f['tcp_segs_out'],
                     "ebwp":  lambda f: f['tcp_cwnd'] * f['tcp_rtt']
                     }.items():
-                loads[k] = {f['pid']: func(f) for f in flows}
+                loads[k] = {f['pid']: func(f) for f in _flows}
 
             e_k = 'bytes'
             for k, intercept_flows in self.interrogator.survey_flows(args.interval).items():
