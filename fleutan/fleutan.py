@@ -281,9 +281,10 @@ class Inciter:
         plot_bars(label, lat_data)
         print "\n---"
 
-        thresholds = {
-          10:  Gre, 20: Yel, 10000: Red,
-        }
+        thresholds = {}
+        for t, col in zip(args.thresh.split(','), [Gre, Yel, Red]):
+            thresholds[int(t)] = col
+
         print("*latency per flow in rtt(ms)")
         for f_group, k in itertools.izip_longest(flow_groups, flow_group_k):
             label = ""
@@ -325,6 +326,7 @@ def init_args():
 
     flows_parser = subparsers.add_parser('flows')
     flows_parser.add_argument('-l', '--lat', help='show latency(rtt) outline of flows (TCP only)', action='store_true')
+    flows_parser.add_argument('-t', '--thresh', help='specify thresholds for categorizations', default="10,20,100", metavar='t1,t2,t3')
     flows_parser.add_argument('-v', '--vol', help='show volume outline of flows (TCP only)', action='store_true')
     flows_parser.add_argument('-c', '--cpu', help='show cpu related stats', choices=['gen', 'fl_asoc'])
     flows_parser.add_argument('-g', '--group', help='group treat flows as of specified indepentend aspect',
