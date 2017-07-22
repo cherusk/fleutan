@@ -12,12 +12,24 @@ Fleutan aims at forming an complementing or functionality enriching agglomeratio
 - all kinds of systems engineers, foremost operations focused
 - network researchers
 
+# Install
+
+```
+# pip install Fleutan
+```
+
+## Prerequs
+
+Out of python trees ...
+
+[BCC!](https://github.com/iovisor/bcc/blob/master/INSTALL.md) : In case you want to use eBFS based kernel skb flow volume tracing.
+
 # Examples
 
 To show the prevailing association of flows to cpus you can run
 
 ```
-$ python fleutan.py flows --cpu -i 5
+$ fleutan flows --cpu -i 5
 ~>/usr/lib/thunderbird/thunderbird(2847)
 tcp              192.168.10.50#34718                     212.227.17.170#993
 tcp              192.168.10.50#55258                     194.25.134.115#993
@@ -68,7 +80,7 @@ ___
 Helpful is also to see the paths certain flows are traversing:
 
 ```
-$ python fleutan.py paths -d
+$ fleutan paths -d
 **>Flows
 tcp       2003:62:4655:968b:18d0:33a6:3314:7c7#36582                 2605:ac00:0:39::38#6697        p0
 tcp       2003:62:4655:968b:18d0:33a6:3314:7c7#41570               2600:3c02::f03c:91ff:fe59:7d2e#6667        p1
@@ -92,7 +104,7 @@ p0                                                                     p1       
 
 Even better, to introspect the latency outline of the currently held TCP flows of the system do a
 ```
-$ python fleutan.py flows --lat
+$ fleutan flows --lat
 **TCP FLOWS: (NUM 24)
 *latency distribution [rtt-range]
 
