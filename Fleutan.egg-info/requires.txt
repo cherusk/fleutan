@@ -1,0 +1,8 @@
+tabulate
+futures
+ascii_graph
+numpy
+psutil
+multiprocessing
+backports.functools_lru_cache
+termcolor

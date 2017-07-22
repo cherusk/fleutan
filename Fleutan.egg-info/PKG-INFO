@@ -1,0 +1,12 @@
+Metadata-Version: 1.1
+Name: Fleutan
+Version: 0.5
+Summary: Fleutan - a scalable network flows and paths wielding lever
+Home-page: https://github.com/cherusk/fleutan
+Author: Matthias Tafelmeier
+Author-email: matthias.tafelmeier@gmx.net
+License: GPL-3.0
+Download-URL: https://github.com/cherusk/fleutan/dist/0.5.tar.gz
+Description: UNKNOWN
+Keywords: linux,tool,transport,sockets,flow,stats,analytics
+Platform: UNKNOWN
