@@ -148,8 +148,9 @@ class Inciter:
         return [(idx_fmt % (f['src_addr'], f['src_p'], f['dst_addr'], f['dst_p']),
                              func(f)) for f in flows]
 
-    def _flows_group(self, flow_groups):
+    def _flows_group(self, flows, args):
             flow_groups = []
+            flow_group_k = []
             k_func = None
             if args.group == 'peer':
                 k_func = lambda f: f['dst_addr']
@@ -157,6 +158,9 @@ class Inciter:
             elif args.group == 'proc':
                 k_func = lambda f: f['pid']
                 label_pre = 'proc'
+            # ugly sneek
+            elif args.qdisc:
+                k_func = lambda f: f['qu_idx']
             else:
                 raise RuntimeError('Unexpected aspect %s' % args.group)
 
@@ -176,7 +180,7 @@ class Inciter:
         label_pre = ""
 
         if args.group:
-            flow_group_k, flow_groups = self._flows_group(flows)
+            flow_group_k, flow_groups = self._flows_group(flows, args)
 
 
         print("**TCP FLOWS:ebdp (estimated bandwidth-delay-product)")
@@ -271,7 +275,7 @@ class Inciter:
         label_pre = ""
 
         if args.group:
-            flow_group_k, flow_groups = self._flows_group(flows)
+            flow_group_k, flow_groups = self._flows_group(flows, args)
 
         print("**TCP FLOWS: (NUM %s)" % len(flows))
         print("*latency distribution [rtt-range]")
@@ -299,6 +303,27 @@ class Inciter:
             plot_bars(label, sorted(lat_data, key=lambda v: v[1]), threshs=thresholds)
             print "\n---"
 
+    def flows_qdisc(self, args):
+        flows = filter(lambda x: x['type'] == 'tcp' or x['type'] == 'udp', self.interrogator.gather_flows(with_if=True))
+        k_flows = self.interrogator.survey_flows(args.interval)
+
+        _flows_e_exch(flows, k_flows['TX'], ['dev'], ['dev'])
+        _flows = k_flows['TX']
+        _flows_by_idx_k, _flows_by_idx = self._flows_group(_flows.values(), args)
+
+        print "qdisc queues #>"
+        label = "load (bytes) per qu"
+        _sum_data = [(str(q_idx), sum([f['bytes'] for f in _flows]))
+                     for q_idx, _flows in itertools.izip_longest(_flows_by_idx_k, _flows_by_idx)]
+        plot_bars(label, _sum_data)
+
+        print "\n----\n\nflowing volumes per qu ##>"
+        for k, qu_flows in itertools.izip_longest(_flows_by_idx_k, _flows_by_idx):
+            func = lambda f: f['bytes']
+            label = str(k)
+            qu_flows_out = self._flows_data_form(qu_flows, func)
+            plot_bars(label, sorted(qu_flows_out, key=lambda f: f[1]))
+            print "----"
 
     def flows(self, args):
         if args.lat:
@@ -311,6 +336,10 @@ class Inciter:
 
         if args.cpu:
             self.flows_cpu(args)
+            return
+
+        if args.qdisc:
+            self.flows_qdisc(args)
             return
 
         raise RuntimeError("unknown flows interaction")
@@ -334,6 +363,7 @@ def init_args():
     flows_parser.add_argument('-c', '--cpu', help='show cpu related stats', choices=['gen', 'fl_asoc'])
     flows_parser.add_argument('-g', '--group', help='group treat flows as of specified indepentend aspect',
                               choices=['peer', 'proc'])
+    flows_parser.add_argument('-q', '--qdisc', help='show qdisc stats', action='store_true')
     # too groase
     flows_parser.add_argument('-i', '--interval', help='interval in secs for sampling based functionalities',
                               type=int, default=2)
